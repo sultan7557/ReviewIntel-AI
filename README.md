@@ -54,25 +54,25 @@ Instead of manually reading hundreds of reviews, teams receive executive-ready i
 
 ## Dashboard
 
-![Dashboard](docs/screenshots/dashboard.png)
+![Dashboard](docs/screenshots/dashboard_image.png)
 
 ---
 
 ## Live Analysis Progress
 
-![Analysis Progress](docs/screenshots/live_analysis.png)
+![Analysis Progress](docs/screenshots/analysis_live.png)
 
 ---
 
 ## Executive Intelligence Report
 
-![Executive Intelligence Report](docs/screenshots/intelligence_report.png)
+![Executive Intelligence Report](docs/screenshots/intelligence.png)
 
 ---
 
 ## Competitor Gap Analysis
 
-![Competitor Gap Analysis](docs/screenshots/competitor_gap_analysis.png)
+![Competitor Gap Analysis](docs/screenshots/competitor_analysis_gap.png)
 
 ---
 
