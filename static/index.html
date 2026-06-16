@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #F97316;
+      --orange-dim: #EA580C;
+      --orange-sub: rgba(249,115,22,0.1);
+      --orange-border: rgba(249,115,22,0.22);
+      --success: #22C55E;
+      --success-sub: rgba(34,197,94,0.1);
+      --danger: #EF4444;
+      --danger-sub: rgba(239,68,68,0.1);
+      --warning: #EAB308;
+      --warning-sub: rgba(234,179,8,0.1);
+      --bg: #0A0A0A;
+      --surface: #111111;
+      --card: #161616;
+      --card-hover: #1A1A1A;
+      --border: rgba(255,255,255,0.07);
+      --border-med: rgba(255,255,255,0.1);
+      --text: #FAFAFA;
+      --text-secondary: #A1A1AA;
+      --text-dim: #52525B;
+      --sidebar-w: 300px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--bg);
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ─── Background ───────────────────────────────────────────── */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 2% 2%, rgba(249,115,22,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 98% 95%, rgba(234,88,12,0.06) 0%, transparent 50%),
+        var(--bg);
+    }
+
+    /* ─── Progress bar ─────────────────────────────────────────── */
+    .progress-track {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+      background: var(--surface);
+    }
+    .progress-track.active { opacity: 1; }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--orange);
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── Sidebar ──────────────────────────────────────────────── */
+    .sidebar {
+      position: relative;
+      z-index: 10;
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+    }
+
+    .sidebar-top {
+      padding: 20px 20px 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-bottom {
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: var(--orange-sub);
+      border: 1px solid var(--orange-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12.5px;
+      font-family: inherit;
+      padding: 9px 11px;
+      resize: vertical;
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: rgba(249,115,22,0.4);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: var(--text-dim); }
+
+    .char-count {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    .inline-error {
+      font-size: 11.5px;
+      color: #FCA5A5;
+      background: var(--danger-sub);
+      border: 1px solid rgba(239,68,68,0.18);
+      border-radius: 7px;
+      padding: 7px 10px;
+      display: none;
+    }
+    .inline-error.visible { display: block; }
+
+    /* ─── Buttons ──────────────────────────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 10px 16px;
+      transition: background 0.15s, color 0.15s;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--orange);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--orange-dim); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      display: none;
+    }
+    .btn-secondary.visible { display: flex; }
+    .btn-secondary:hover { background: var(--card); color: var(--text); }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    .spinner.visible { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Main ─────────────────────────────────────────────────── */
+    .main {
+      position: relative;
+      z-index: 5;
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 28px 36px;
+    }
+
+    .main-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .main-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .main-header p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    .network-error {
+      background: var(--danger-sub);
+      border: 1px solid rgba(239,68,68,0.2);
+      color: #FCA5A5;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      font-size: 12.5px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    .network-error.visible { display: block; }
+
+    /* ─── Empty state ──────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: calc(100% - 70px);
+      text-align: center;
+      gap: 16px;
+    }
+
+    .empty-icon {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .empty-state p {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      max-width: 340px;
+      line-height: 1.65;
+    }
+
+    .pipeline-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-top: 6px;
+    }
+
+    .pipeline-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .pipeline-node-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(249,115,22,0.4);
+    }
+
+    .pipeline-arrow {
+      width: 20px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── Steps ────────────────────────────────────────────────── */
+    .steps { display: none; flex-direction: column; gap: 0; }
+    .steps.visible { display: flex; }
+
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: border-color 0.2s;
+      animation: fadeIn 0.35s ease both;
+    }
+
+    .step-card[data-step="1"] { animation-delay: 0.03s; }
+    .step-card[data-step="2"] { animation-delay: 0.08s; }
+    .step-card[data-step="3"] { animation-delay: 0.13s; }
+    .step-card[data-step="4"] { animation-delay: 0.18s; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-card.is-running { border-color: rgba(249,115,22,0.25); }
+    .step-card.is-complete { border-color: rgba(34,197,94,0.15); }
+    .step-card.is-error { border-color: rgba(239,68,68,0.2); }
+
+    .step-connector {
+      width: 1px;
+      height: 20px;
+      margin: 0 auto;
+      background: var(--border);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: default;
+    }
+
+    .step-icon {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-card.is-running .step-icon { background: var(--orange-sub); border-color: var(--orange-border); }
+    .step-card.is-complete .step-icon { background: var(--success-sub); border-color: rgba(34,197,94,0.25); }
+
+    .step-name {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+      color: var(--text);
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      padding: 3px 9px;
+      border-radius: 4px;
+    }
+    .badge-waiting { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+    .badge-running { background: var(--orange-sub); color: var(--orange); border: 1px solid var(--orange-border); }
+    .badge-complete { background: var(--success-sub); color: #4ADE80; border: 1px solid rgba(34,197,94,0.2); }
+    .badge-error { background: var(--danger-sub); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.2); }
+
+    .step-body { padding: 18px; min-height: 50px; }
+    .step-body.empty { display: none; }
+
+    .skeleton-wrap { display: flex; flex-direction: column; gap: 9px; }
+    .skeleton {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+    }
+    .skeleton:nth-child(2) { width: 78%; }
+    .skeleton:nth-child(3) { width: 55%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .error-msg {
+      color: #FCA5A5;
+      font-size: 12px;
+      padding: 11px 13px;
+      background: var(--danger-sub);
+      border: 1px solid rgba(239,68,68,0.15);
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       STEP 1 — Sentiment & Theme Analysis
+    ══════════════════════════════════════════════════════════ */
+
+    .s1-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 1000px) { .s1-grid { grid-template-columns: 1fr; } }
+
+    /* Gauge */
+    .gauge-wrap { display: flex; flex-direction: column; align-items: center; }
+    .gauge-wrap svg { width: 100%; max-width: 200px; }
+
+    /* Stats row under gauge */
+    .s1-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+      width: 100%;
+      max-width: 200px;
+    }
+
+    .s1-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .s1-stat-n { font-size: 18px; font-weight: 700; line-height: 1; }
+    .s1-stat-n.pos { color: #4ADE80; }
+    .s1-stat-n.neg { color: #F87171; }
+    .s1-stat-n.neu { color: var(--orange); }
+    .s1-stat-l { font-size: 9px; color: var(--text-dim); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .s1-right { display: flex; flex-direction: column; gap: 14px; }
+
+    .summary-block {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      padding: 12px 14px;
+      background: var(--surface);
+      border-radius: 9px;
+      border-left: 2px solid var(--orange);
+    }
+
+    .theme-bars-head {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .theme-bars { display: flex; flex-direction: column; gap: 4px; }
+
+    .theme-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 40px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .theme-row:hover { background: var(--surface); }
+    .theme-row.active { background: rgba(249,115,22,0.06); }
+
+    .theme-row-name { font-size: 11.5px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .bar-track {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+    .bar-fill.pos { background: #22C55E; }
+    .bar-fill.neg { background: #EF4444; }
+    .bar-fill.neu { background: var(--orange); }
+
+    .bar-score { font-size: 10.5px; font-weight: 600; text-align: right; }
+    .bar-score.pos { color: #4ADE80; }
+    .bar-score.neg { color: #F87171; }
+    .bar-score.neu { color: var(--orange); }
+
+    .theme-detail {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 14px;
+      margin-top: 4px;
+      animation: fadeIn 0.2s ease;
+    }
+    .theme-detail.visible { display: block; }
+    .theme-detail h4 { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 10px 0 5px; }
+    .theme-detail h4:first-child { margin-top: 0; }
+    .theme-detail ul { padding-left: 16px; font-size: 12px; color: var(--text-secondary); }
+    .theme-detail li { margin-bottom: 4px; }
+    .quote-line { font-style: italic; font-size: 12px; color: var(--text-secondary); border-left: 2px solid var(--orange); padding-left: 10px; margin-top: 4px; }
+
+    /* ══════════════════════════════════════════════════════════
+       STEP 2 — Claims Extraction
+    ══════════════════════════════════════════════════════════ */
+
+    .claims-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 880px) { .claims-grid { grid-template-columns: 1fr; } }
+
+    .claims-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .claims-col-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .claims-col-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .col-ico {
+      width: 20px; height: 20px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ico-ing { background: var(--orange-sub); }
+    .ico-ben { background: var(--success-sub); }
+    .ico-wat { background: var(--warning-sub); }
+
+    .col-count {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+
+    .tags-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 400;
+      padding: 3px 9px;
+      border-radius: 5px;
+      background: var(--card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .tag-warn {
+      background: var(--warning-sub);
+      color: #FCD34D;
+      border-color: rgba(234,179,8,0.2);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       STEP 3 — Competitor Gap Analysis
+    ══════════════════════════════════════════════════════════ */
+
+    .gap-stats {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .gap-stat-card {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 9px;
+      border: 1px solid;
+    }
+
+    .gsc-high { background: var(--danger-sub); border-color: rgba(239,68,68,0.18); }
+    .gsc-med { background: var(--warning-sub); border-color: rgba(234,179,8,0.18); }
+    .gsc-low { background: var(--surface); border-color: var(--border); }
+
+    .gsc-num { font-size: 22px; font-weight: 700; line-height: 1; }
+    .gsc-high .gsc-num { color: #F87171; }
+    .gsc-med .gsc-num { color: #FCD34D; }
+    .gsc-low .gsc-num { color: var(--text-dim); }
+    .gsc-label { font-size: 11px; color: var(--text-secondary); margin-top: 3px; font-weight: 500; }
+    .gsc-sub { font-size: 10px; color: var(--text-dim); }
+
+    .gap-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+    .gap-item {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .gap-item:hover { border-color: var(--border-med); }
+
+    .gap-stripe { width: 3px; flex-shrink: 0; }
+    .gs-high { background: #EF4444; }
+    .gs-med { background: #EAB308; }
+    .gs-low { background: #3F3F46; }
+
+    .gap-body { padding: 11px 13px; flex: 1; }
+    .gap-title { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+    .gap-opp { font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; }
+
+    .gap-badge-wrap { padding: 11px 12px; display: flex; align-items: flex-start; }
+
+    .p-high { background: var(--danger-sub); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.2); }
+    .p-medium { background: var(--warning-sub); color: #FCD34D; border: 1px solid rgba(234,179,8,0.2); }
+    .p-low { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .gap-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 680px) { .gap-cols { grid-template-columns: 1fr; } }
+
+    .gap-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .gap-col-head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 11px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gap-col-ico {
+      width: 20px; height: 20px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ico-win { background: var(--orange-sub); }
+    .ico-str { background: rgba(139,92,246,0.1); }
+
+    .gap-col-title { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+
+    .gap-col ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0; }
+    .gap-col li {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .gap-col li:last-child { border-bottom: none; }
+    .gap-col li::before { content: '–'; position: absolute; left: 0; color: var(--orange); font-size: 10px; top: 9px; }
+
+    /* ══════════════════════════════════════════════════════════
+       STEP 4 — Report
+    ══════════════════════════════════════════════════════════ */
+
+    .report-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .report-meta-text { font-size: 11.5px; color: var(--text-dim); }
+
+    .btn-copy {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-copy:hover { background: var(--surface); color: var(--text); border-color: var(--border-med); }
+
+    .markdown-body {
+      font-size: 13px;
+      line-height: 1.75;
+      color: var(--text-secondary);
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .markdown-body h2 {
+      color: var(--orange);
+      font-size: 14.5px;
+      font-weight: 600;
+      margin: 22px 0 9px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--border);
+    }
+    .markdown-body h2:first-child { margin-top: 0; }
+    .markdown-body h3 { font-size: 13px; font-weight: 600; margin: 14px 0 7px; color: #E4E4E7; }
+    .markdown-body p { margin-bottom: 9px; }
+    .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 10px; }
+    .markdown-body li { margin-bottom: 4px; }
+    .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+    .markdown-body strong { color: var(--text); font-weight: 600; }
+    .markdown-body blockquote { border-left: 2px solid var(--orange); padding-left: 12px; color: var(--text-dim); margin: 10px 0; }
+    .markdown-body code { background: var(--card); border-radius: 4px; padding: 2px 5px; font-size: 12px; }
+
+    /* ─── Scrollbar ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.25); }
+  </style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="progress-track" id="progress-track">
+  <div class="progress-fill" id="progress-fill"></div>
+</div>
+
+<!-- ─── Sidebar ───────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5L9.8 6H14.5L10.6 8.7L12.1 13.5L8 10.5L3.9 13.5L5.4 8.7L1.5 6H6.2L8 1.5Z" fill="#F97316"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">Review Intelligence</div>
+        <div class="brand-sub">Amazon AI Pipeline</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="product-name">Product Name</label>
+      <input type="text" id="product-name" placeholder="e.g. PureOmega Ultra 1000">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="product-reviews">Your Product Reviews</label>
+      <textarea id="product-reviews" rows="9" placeholder="Paste Amazon reviews here..."></textarea>
+      <div class="char-count" id="pr-count">0 words</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="competitor-reviews">Competitor Reviews</label>
+      <textarea id="competitor-reviews" rows="7" placeholder="Paste competitor reviews..."></textarea>
+      <div class="char-count" id="cr-count">0 words</div>
+    </div>
+
+    <p class="inline-error" id="validation-error"></p>
+  </div>
+
+  <div class="sidebar-bottom">
+    <button class="btn btn-primary" id="run-btn">
+      <span class="spinner" id="run-spinner"></span>
+      <span id="run-label">Run Analysis</span>
+    </button>
+    <button class="btn btn-secondary" id="reset-btn">Reset</button>
+  </div>
+</aside>
+
+<!-- ─── Main ──────────────────────────────────────────────────── -->
+<main class="main">
+  <div class="main-header" id="main-header">
+    <div>
+      <h2>Intelligence Pipeline</h2>
+      <p>Sentiment · Claims · Competitive Gaps · Report</p>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      AI-Powered
+    </div>
+  </div>
+
+  <div class="network-error" id="network-error"></div>
+
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="1.5">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+        <rect x="9" y="3" width="6" height="4" rx="1"/>
+        <line x1="9" y1="12" x2="15" y2="12"/>
+        <line x1="9" y1="16" x2="13" y2="16"/>
+      </svg>
+    </div>
+    <h3>Ready to Analyze</h3>
+    <p>Paste your product and competitor reviews, then run the pipeline to generate a full intelligence report.</p>
+    <div class="pipeline-row">
+      <div class="pipeline-node"><div class="pipeline-node-dot"></div>Sentiment</div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node"><div class="pipeline-node-dot"></div>Claims</div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node"><div class="pipeline-node-dot"></div>Gaps</div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node"><div class="pipeline-node-dot"></div>Report</div>
+    </div>
+  </div>
+
+  <div class="steps" id="steps">
+    <!-- Step 1 -->
+    <div class="step-card" data-step="1">
+      <div class="step-header">
+        <div class="step-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <span class="step-name">Sentiment &amp; Theme Analysis</span>
+        <span class="badge badge-waiting" data-badge>Waiting</span>
+      </div>
+      <div class="step-body empty" data-body></div>
+    </div>
+    <div class="step-connector" data-connector="1"></div>
+
+    <!-- Step 2 -->
+    <div class="step-card" data-step="2">
+      <div class="step-header">
+        <div class="step-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+          </svg>
+        </div>
+        <span class="step-name">Ingredient &amp; Claims Extraction</span>
+        <span class="badge badge-waiting" data-badge>Waiting</span>
+      </div>
+      <div class="step-body empty" data-body></div>
+    </div>
+    <div class="step-connector" data-connector="2"></div>
+
+    <!-- Step 3 -->
+    <div class="step-card" data-step="3">
+      <div class="step-header">
+        <div class="step-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <span class="step-name">Competitor Gap Analysis</span>
+        <span class="badge badge-waiting" data-badge>Waiting</span>
+      </div>
+      <div class="step-body empty" data-body></div>
+    </div>
+    <div class="step-connector" data-connector="3"></div>
+
+    <!-- Step 4 -->
+    <div class="step-card" data-step="4">
+      <div class="step-header">
+        <div class="step-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <span class="step-name">Intelligence Report</span>
+        <span class="badge badge-waiting" data-badge>Waiting</span>
+      </div>
+      <div class="step-body empty" data-body></div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ─── Sample data ──────────────────────────────────────────────── */
+const SAMPLE_PRODUCT = `Review 1 — ★★★★★
+I've been taking PureOmega Ultra for about three months now and I genuinely notice a difference in my joint stiffness. I'm a runner in my late 40s and my knees used to ache after long runs. The EPA/DHA ratio seems solid — 800mg EPA and 600mg DHA per serving according to the label. I take two softgels with breakfast. No miracle cure but definitely less inflammation. Will reorder.
+
+Review 2 — ★★☆☆☆
+The fish burps are REAL with this product. I tried taking them with meals, before bed, even freezing the capsules first like someone suggested online — nothing works. Within an hour I get that awful fishy taste coming back up. My wife noticed it too and asked me to stop taking them in the same room. For the price ($34.99 for 60 count) I expected better enteric coating. Disappointed because I heard good things about the brand.
+
+Review 3 — ★★★★☆
+Good quality omega-3, third-party tested which I appreciate. The capsules are on the larger side though — about an inch long — and I have trouble swallowing them. I end up biting them open and mixing with yogurt which is gross but it works. Taste of the oil itself isn't bad when you do it that way. Wish they made a smaller capsule option.
+
+Review 4 — ★★★☆☆
+Decent product, nothing special. I've tried Nordic Naturals and Sports Research and this falls somewhere in the middle. The bottle arrived with the safety seal partially lifted which made me nervous about freshness. Customer service sent a replacement but it took two weeks. The actual fish oil quality seems fine — clear, no cloudiness. Just okay overall.
+
+Review 5 — ★★★★★
+My cardiologist recommended I start taking omega-3 for heart health and this was the best value I found with proper IFOS certification. Been on it six months, my triglycerides dropped 18 points at my last checkup. Can't say it's 100% this product but my doctor was pleased. The flip-top lid on the bottle is convenient. No stomach issues for me at all.
+
+Review 6 — ★★☆☆☆
+Bought the 180-count bottle and about 20 capsules were stuck together in a clump at the bottom. Looked like they melted and resolidified at some point during shipping — it was summer and the package sat on my porch for hours. The company did refund me but I'm switching brands. Also the capsules have a strong fish smell even before you take them.
+
+Review 7 — ★★★★☆
+Pretty good for the price point. I take these for brain fog and focus during work and I think it helps, though it could be placebo. The gelatin capsules are standard bovine gelatin if that matters to you — I'm not vegetarian but my partner is and she won't touch them. Label says "wild-caught" and "molecularly distilled" which sounds good. Packaging is plain, nothing fancy.
+
+Review 8 — ★★★☆☆
+Mixed feelings. The omega-3 content per serving is good and I like that they include vitamin E as an antioxidant. But two softgels is a lot of gel cap material and I feel like I'm swallowing a grape. The aftertaste lingers for hours even without full burps — just a faint fishy taste in the back of my throat. Might try the liquid version if they make one.`;
+
+const SAMPLE_COMPETITOR = `Review 1 — ★★★★★
+Switched to OceanPure Omega from a cheaper brand and wow, what a difference. Zero fishy burps — I mean ZERO. They use some kind of lemon-flavored enteric coating and it actually works. I've been recommending this to everyone at my gym. Capsules are tiny too, maybe half the size of my old brand. Easy to swallow even with my morning coffee.
+
+Review 2 — ★★★★☆
+Great product quality, very clean ingredients list — just fish oil, lemon oil, and tocopherol. My inflammation markers improved after 8 weeks per my bloodwork. Only complaint is the price: $42 for 90 softgels is steep when you need two per day. That's almost a dollar a day. Would love a subscribe-and-save discount that actually saves more than 5%.
+
+Review 3 — ★★☆☆☆
+Product itself is fine but their customer service is terrible. My order arrived damaged — bottle was cracked and leaking oil everywhere inside the box. Emailed support three times over two weeks before getting a response. When they finally replied they offered 15% off my next order instead of a full replacement. Unacceptable for a premium-priced supplement.
+
+Review 4 — ★★★★★
+These are the smallest omega-3 capsules I've ever used and I love that. I'm elderly and have always struggled with pill swallowing — my doctor said I need omega-3 for my heart but I kept skipping days because the pills were too big. OceanPure solved that problem completely. Also no aftertaste at all, even when I take them on an empty stomach.
+
+Review 5 — ★★★☆☆
+Good EPA/DHA numbers but the packaging feels cheap for the price. The bottle is thin plastic and the label started peeling off after a month in my humid bathroom cabinet. Oil quality seems fine — no rancid smell. I do wish they offered a larger 360-count option for better value. The flip-top cap also broke after about six weeks of daily use.`;
+
+/* ─── State ────────────────────────────────────────────────────── */
+let running = false;
+let reportMarkdown = '';
+let completedSteps = 0;
+
+const $ = sel => document.querySelector(sel);
+
+/* ─── Gauge SVG builder ─────────────────────────────────────────── */
+function buildGaugeSVG(score) {
+  const norm = Math.max(0, Math.min(1, (score + 1) / 2));
+  // Arc: center (100,95), radius 72, start 225° clock, sweep 270°
+  const cx = 100, cy = 95, r = 72;
+
+  function clockXY(deg) {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
+
+  const [sx, sy] = clockXY(225);
+  const [ex, ey] = clockXY(135); // (225+270)%360 = 135
+  const arcLen = (270 / 360) * 2 * Math.PI * r; // ≈ 339.3
+
+  const totalL = arcLen.toFixed(1);
+  const offset = (arcLen * (1 - norm)).toFixed(1);
+
+  const fillColor = score > 0.3 ? '#4ADE80' : score < -0.3 ? '#F87171' : '#F97316';
+  const label = score > 0.3 ? 'Positive' : score < -0.3 ? 'Negative' : 'Neutral';
+
+  const trackD = `M ${sx.toFixed(2)} ${sy.toFixed(2)} A ${r} ${r} 0 1 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
+
+  return `<svg viewBox="0 0 200 175" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Track -->
+    <path d="${trackD}" stroke="rgba(255,255,255,0.07)" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <!-- Fill -->
+    <path d="${trackD}" stroke="${fillColor}" stroke-width="10" stroke-linecap="round" fill="none"
+      stroke-dasharray="${totalL}" stroke-dashoffset="${totalL}"
+      class="gauge-arc" data-offset="${offset}"/>
+    <!-- Score text -->
+    <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-family="Inter,sans-serif" font-size="30" font-weight="700" fill="white">${score.toFixed(2)}</text>
+    <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="600" fill="${fillColor}">${label}</text>
+    <!-- Range labels -->
+    <text x="22" y="${sy + 16}" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="rgba(255,255,255,0.25)">−1.0</text>
+    <text x="178" y="${ey + 16}" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="rgba(255,255,255,0.25)">+1.0</text>
+  </svg>`;
+}
+
+function animateGauge(container) {
+  const arc = container.querySelector('.gauge-arc');
+  if (!arc) return;
+  const target = arc.dataset.offset;
+  arc.style.transition = 'none';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      arc.style.transition = 'stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)';
+      arc.style.strokeDashoffset = target;
+    });
+  });
+}
+
+/* ─── Helpers ──────────────────────────────────────────────────── */
+function getCard(step) { return document.querySelector(`.step-card[data-step="${step}"]`); }
+
+function setProgress(pct) {
+  $('#progress-fill').style.width = pct + '%';
+}
+
+function setBadge(step, status, text) {
+  const card = getCard(step);
+  const badge = card.querySelector('[data-badge]');
+  badge.className = 'badge badge-' + status;
+  badge.textContent = text;
+  card.classList.remove('is-running', 'is-complete', 'is-error');
+  if (status === 'running') card.classList.add('is-running');
+  else if (status === 'complete') card.classList.add('is-complete');
+  else if (status === 'error') card.classList.add('is-error');
+}
+
+function setStepRunning(step) {
+  setBadge(step, 'running', 'Analyzing...');
+  const body = getCard(step).querySelector('[data-body]');
+  body.classList.remove('empty');
+  body.innerHTML = '<div class="skeleton-wrap"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
+  setProgress((step - 1) * 25);
+}
+
+function setStepError(step, message) {
+  setBadge(step, 'error', 'Error');
+  const body = getCard(step).querySelector('[data-body]');
+  body.classList.remove('empty');
+  body.innerHTML = `<p class="error-msg">${esc(message)}</p>`;
+}
+
+function setStepComplete(step) {
+  setBadge(step, 'complete', 'Complete');
+  completedSteps = Math.max(completedSteps, step);
+  setProgress(step * 25);
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function sentCls(score) {
+  return score > 0.3 ? 'pos' : score < -0.3 ? 'neg' : 'neu';
+}
+
+function wordCount(str) {
+  const w = str.trim().split(/\s+/).filter(Boolean).length;
+  return w ? `${w.toLocaleString()} words` : '0 words';
+}
+
+/* ─── Render: Step 1 ────────────────────────────────────────────── */
+function renderStep1(data) {
+  const body = getCard(1).querySelector('[data-body]');
+
+  const pos = data.themes.filter(t => t.sentiment_score > 0.3).length;
+  const neg = data.themes.filter(t => t.sentiment_score < -0.3).length;
+  const neu = data.themes.length - pos - neg;
+
+  const sorted = [...data.themes].sort((a, b) => b.sentiment_score - a.sentiment_score);
+
+  const themeRows = sorted.map((t, i) => {
+    const pct = ((t.sentiment_score + 1) / 2 * 100).toFixed(1);
+    const cls = sentCls(t.sentiment_score);
+    return `<div class="theme-row" data-ti="${i}">
+      <div class="theme-row-name">${esc(t.name)}</div>
+      <div class="bar-track"><div class="bar-fill ${cls}" data-w="${pct}%"></div></div>
+      <div class="bar-score ${cls}">${t.sentiment_score.toFixed(2)}</div>
+    </div>
+    <div class="theme-detail" data-td="${i}">
+      <h4>Top Complaints (${t.review_count} reviews)</h4>
+      <ul>${t.top_complaints.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+      <h4>Top Praises</h4>
+      <ul>${t.top_praises.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      <h4>Sample Quote</h4>
+      <p class="quote-line">"${esc(t.sample_quote)}"</p>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="s1-grid">
+      <div class="gauge-wrap">
+        ${buildGaugeSVG(data.overall_score)}
+        <div class="s1-stats">
+          <div class="s1-stat"><div class="s1-stat-n pos">${pos}</div><div class="s1-stat-l">Pos</div></div>
+          <div class="s1-stat"><div class="s1-stat-n neu">${neu}</div><div class="s1-stat-l">Neu</div></div>
+          <div class="s1-stat"><div class="s1-stat-n neg">${neg}</div><div class="s1-stat-l">Neg</div></div>
+        </div>
+      </div>
+      <div class="s1-right">
+        <div class="summary-block">${esc(data.summary)}</div>
+        <div>
+          <div class="theme-bars-head">Theme Breakdown</div>
+          <div class="theme-bars">${themeRows}</div>
+        </div>
+      </div>
+    </div>`;
+
+  animateGauge(body);
+
+  setTimeout(() => {
+    body.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = el.dataset.w;
+    });
+  }, 60);
+
+  body.querySelectorAll('.theme-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const i = row.dataset.ti;
+      const detail = body.querySelector(`[data-td="${i}"]`);
+      const isOpen = row.classList.contains('active');
+      body.querySelectorAll('.theme-row').forEach(r => r.classList.remove('active'));
+      body.querySelectorAll('.theme-detail').forEach(d => d.classList.remove('visible'));
+      if (!isOpen) { row.classList.add('active'); detail.classList.add('visible'); }
+    });
+  });
+}
+
+/* ─── Render: Step 2 ────────────────────────────────────────────── */
+function renderStep2(data) {
+  const body = getCard(2).querySelector('[data-body]');
+  const sides = data.side_effect_mentions || [];
+  const watchList = [...data.unverified_claims, ...sides];
+
+  function colHtml(items, cls) {
+    if (!items.length) return '<span class="tag">None found</span>';
+    return items.map(i => `<span class="tag ${cls}">${esc(i)}</span>`).join('');
+  }
+
+  body.innerHTML = `
+    <div class="claims-grid">
+      <div class="claims-col">
+        <div class="claims-col-head">
+          <div class="claims-col-title">
+            <div class="col-ico ico-ing">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2.5">
+                <path d="M9 3v11a3 3 0 006 0V3"/>
+                <line x1="6" y1="3" x2="18" y2="3"/>
+              </svg>
+            </div>
+            Ingredients
+          </div>
+          <span class="col-count">${data.ingredient_mentions.length}</span>
+        </div>
+        <div class="tags-wrap">${colHtml(data.ingredient_mentions, '')}</div>
+      </div>
+      <div class="claims-col">
+        <div class="claims-col-head">
+          <div class="claims-col-title">
+            <div class="col-ico ico-ben">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            Benefit Claims
+          </div>
+          <span class="col-count">${data.benefit_claims.length}</span>
+        </div>
+        <div class="tags-wrap">${colHtml(data.benefit_claims, '')}</div>
+      </div>
+      <div class="claims-col">
+        <div class="claims-col-head">
+          <div class="claims-col-title">
+            <div class="col-ico ico-wat">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#EAB308" stroke-width="2.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            Watch List
+          </div>
+          <span class="col-count">${watchList.length}</span>
+        </div>
+        <div class="tags-wrap">${colHtml(watchList, 'tag-warn')}</div>
+      </div>
+    </div>`;
+}
+
+/* ─── Render: Step 3 ────────────────────────────────────────────── */
+function renderStep3(data) {
+  const body = getCard(3).querySelector('[data-body]');
+
+  const high = data.gaps.filter(g => g.priority === 'high').length;
+  const med  = data.gaps.filter(g => g.priority === 'medium').length;
+  const low  = data.gaps.filter(g => g.priority === 'low').length;
+
+  const gapItems = data.gaps.map(g => {
+    const stripeClass = g.priority === 'high' ? 'gs-high' : g.priority === 'medium' ? 'gs-med' : 'gs-low';
+    const badgeClass  = g.priority === 'high' ? 'p-high' : g.priority === 'medium' ? 'p-medium' : 'p-low';
+    return `<div class="gap-item">
+      <div class="gap-stripe ${stripeClass}"></div>
+      <div class="gap-body">
+        <div class="gap-title">${esc(g.gap_description)}</div>
+        <div class="gap-opp">${esc(g.opportunity)}</div>
+      </div>
+      <div class="gap-badge-wrap">
+        <span class="badge ${badgeClass}">${esc(g.priority)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="gap-stats">
+      <div class="gap-stat-card gsc-high">
+        <div class="gsc-num">${high}</div>
+        <div class="gsc-label">High Priority</div>
+        <div class="gsc-sub">Urgent gaps</div>
+      </div>
+      <div class="gap-stat-card gsc-med">
+        <div class="gsc-num">${med}</div>
+        <div class="gsc-label">Medium Priority</div>
+        <div class="gsc-sub">Plan ahead</div>
+      </div>
+      <div class="gap-stat-card gsc-low">
+        <div class="gsc-num">${low}</div>
+        <div class="gsc-label">Low Priority</div>
+        <div class="gsc-sub">Monitor</div>
+      </div>
+    </div>
+    <div class="gap-list">${gapItems}</div>
+    <div class="gap-cols">
+      <div class="gap-col">
+        <div class="gap-col-head">
+          <div class="gap-col-ico ico-win">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2.5">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <div class="gap-col-title">Quick Wins</div>
+        </div>
+        <ul>${data.quick_wins.map(w => `<li>${esc(w)}</li>`).join('')}</ul>
+      </div>
+      <div class="gap-col">
+        <div class="gap-col-head">
+          <div class="gap-col-ico ico-str">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="6"/>
+              <circle cx="12" cy="12" r="2"/>
+            </svg>
+          </div>
+          <div class="gap-col-title">Strategic Opportunities</div>
+        </div>
+        <ul>${data.strategic_opportunities.map(o => `<li>${esc(o)}</li>`).join('')}</ul>
+      </div>
+    </div>`;
+}
+
+/* ─── Render: Step 4 ────────────────────────────────────────────── */
+function renderStep4(data) {
+  reportMarkdown = data.report_markdown;
+  const body = getCard(4).querySelector('[data-body]');
+  body.innerHTML = `
+    <div class="report-toolbar">
+      <span class="report-meta-text">Full intelligence report</span>
+      <button class="btn-copy" id="copy-btn">Copy Markdown</button>
+    </div>
+    <div class="markdown-body" id="report-md"></div>`;
+  document.getElementById('report-md').innerHTML = marked.parse(reportMarkdown);
+  document.getElementById('copy-btn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(reportMarkdown);
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy Markdown'; }, 2000);
+    } catch { alert('Failed to copy'); }
+  });
+}
+
+/* ─── Validation ───────────────────────────────────────────────── */
+function validate() {
+  const name = $('#product-name').value.trim();
+  const reviews = $('#product-reviews').value.trim();
+  const err = $('#validation-error');
+  if (!name) {
+    err.textContent = 'Product name is required.';
+    err.classList.add('visible');
+    return false;
+  }
+  if (reviews.length <= 100) {
+    err.textContent = 'Product reviews must be more than 100 characters.';
+    err.classList.add('visible');
+    return false;
+  }
+  err.classList.remove('visible');
+  return true;
+}
+
+/* ─── Reset ────────────────────────────────────────────────────── */
+function resetSteps() {
+  completedSteps = 0;
+  setProgress(0);
+  for (let i = 1; i <= 4; i++) {
+    setBadge(i, 'waiting', 'Waiting');
+    getCard(i).classList.remove('is-running', 'is-complete', 'is-error');
+    const body = getCard(i).querySelector('[data-body]');
+    body.classList.add('empty');
+    body.innerHTML = '';
+  }
+}
+
+function resetAll() {
+  running = false;
+  reportMarkdown = '';
+  $('#product-name').value = '';
+  $('#product-reviews').value = '';
+  $('#competitor-reviews').value = '';
+  $('#pr-count').textContent = '0 words';
+  $('#cr-count').textContent = '0 words';
+  $('#validation-error').classList.remove('visible');
+  $('#network-error').classList.remove('visible');
+  $('#empty-state').style.display = '';
+  $('#steps').classList.remove('visible');
+  $('#reset-btn').classList.remove('visible');
+  $('#progress-track').classList.remove('active');
+  $('#run-btn').disabled = false;
+  $('#run-spinner').classList.remove('visible');
+  $('#run-label').textContent = 'Run Analysis';
+  resetSteps();
+}
+
+/* ─── SSE parser ────────────────────────────────────────────────── */
+function parseSSE(raw) {
+  let eventType = 'message', data = '';
+  for (const line of raw.split('\n')) {
+    if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+    else if (line.startsWith('data: ')) data = line.slice(6);
+  }
+  if (!data) return;
+  let parsed;
+  try { parsed = JSON.parse(data); } catch { return; }
+
+  switch (eventType) {
+    case 'step_start':    setStepRunning(parsed.step); break;
+    case 'step_complete':
+      setStepComplete(parsed.step);
+      if (parsed.step === 1) renderStep1(parsed.result);
+      else if (parsed.step === 2) renderStep2(parsed.result);
+      else if (parsed.step === 3) renderStep3(parsed.result);
+      else if (parsed.step === 4) renderStep4(parsed.result);
+      break;
+    case 'error':    setStepError(parsed.step, parsed.message); break;
+    case 'complete': $('#reset-btn').classList.add('visible'); break;
+  }
+}
+
+/* ─── Run ───────────────────────────────────────────────────────── */
+async function runAnalysis() {
+  if (running || !validate()) return;
+
+  running = true;
+  reportMarkdown = '';
+  completedSteps = 0;
+  $('#run-btn').disabled = true;
+  $('#run-spinner').classList.add('visible');
+  $('#run-label').textContent = 'Analyzing...';
+  $('#network-error').classList.remove('visible');
+  $('#empty-state').style.display = 'none';
+  $('#steps').classList.add('visible');
+  $('#progress-track').classList.add('active');
+  resetSteps();
+
+  const payload = {
+    product_name: $('#product-name').value.trim(),
+    product_reviews: $('#product-reviews').value.trim(),
+    competitor_reviews: $('#competitor-reviews').value.trim(),
+  };
+
+  try {
+    const response = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error(await response.text() || `Server error (${response.status})`);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        if (part.trim()) parseSSE(part);
+      }
+    }
+    if (buffer.trim()) parseSSE(buffer);
+    setProgress(100);
+  } catch (err) {
+    $('#network-error').textContent = `Connection error: ${err.message}. Make sure the server is running.`;
+    $('#network-error').classList.add('visible');
+  } finally {
+    running = false;
+    $('#run-btn').disabled = false;
+    $('#run-spinner').classList.remove('visible');
+    $('#run-label').textContent = 'Run Analysis';
+    $('#reset-btn').classList.add('visible');
+  }
+}
+
+/* ─── Init ──────────────────────────────────────────────────────── */
+function init() {
+  $('#product-name').value = 'PureOmega Ultra 1000';
+  $('#product-reviews').value = SAMPLE_PRODUCT;
+  $('#competitor-reviews').value = SAMPLE_COMPETITOR;
+  $('#pr-count').textContent = wordCount(SAMPLE_PRODUCT);
+  $('#cr-count').textContent = wordCount(SAMPLE_COMPETITOR);
+
+  $('#run-btn').addEventListener('click', runAnalysis);
+  $('#reset-btn').addEventListener('click', resetAll);
+
+  $('#product-reviews').addEventListener('input', e => {
+    $('#pr-count').textContent = wordCount(e.target.value);
+  });
+  $('#competitor-reviews').addEventListener('input', e => {
+    $('#cr-count').textContent = wordCount(e.target.value);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
